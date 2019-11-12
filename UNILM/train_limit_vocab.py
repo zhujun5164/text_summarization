@@ -82,7 +82,7 @@ def eval(txt, topk): # batch_size, seq_size
     target_ids = [[] for _ in range(topk)]  # 1, topk
     target_scores = [0] * topk  # 1, topk
 
-    for i in range(config.max_output_len):
+    for i in range(args.max_output_len):
         # 第一次输入时，target_ids是None, len(t)为0，因此输入的BERT模型中的为txt
         _target_ids = [txt + t for t in target_ids]  # topk, seq_size + len(t)
         _segment_ids = torch.tensor([segment_ids + [1] * len(t) for t in target_ids])  # topk, seq_size + len(t)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_name', type=str, default='train.csv',
                         help='if the train_data is not exit in data_path, the code will create a new train_data by '
                              'itself and with the train_name')
-    parser.add_argument('--dev_name', type=str, default='dev_csv',
+    parser.add_argument('--dev_name', type=str, default='dev.csv',
                         help='if the dev_data is not exit in data_path, the code will create a new dev_data by '
                              'itself and with the dev_name')
 
@@ -174,7 +174,7 @@ if __name__ == '__main__':
                         help='the limit length for input text')
     parser.add_argument('--max_output_len', type=int, default=32,
                         help='the limit length for input summary and predict sentence')
-    parser.add_argument('--epoch', type=int, default=30,
+    parser.add_argument('--epochs', type=int, default=30,
                         help='train epoch')
     parser.add_argument('--batch_size', type=int, default=10,
                         help='train batch_size')
@@ -190,17 +190,16 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    if os.path.exists(args.data_path) is not True:
-        os.mkdir(args.data_path)
-
     # join data path
     save_path = os.path.join(args.folder_path, args.task_name)
     data_path = os.path.join(args.folder_path, args.data_name)
-    train_path = os.path.join(args.folder_path, args.trian_name)
+    train_path = os.path.join(args.folder_path, args.train_name)
     dev_path = os.path.join(args.folder_path, args.dev_name)
 
+    if os.path.exists(data_path) is not True:
+        os.mkdir(data_path)
     # make data, 如果train_path或者dev_path都存在，通过data_path做数据
-    if (os.path.exists(train_path) or os.path.exists(dev_path)) is not True:
+    if (os.path.exists(train_path) and os.path.exists(dev_path)) is not True:
         make_data(data_path, train_path, dev_path)
 
     config_path = os.path.join(args.folder_path, args.config_name)
@@ -341,7 +340,7 @@ if __name__ == '__main__':
                 pre_all = []
                 for test in dev_texts:
                     text_id = bert_token_and_to_id(tokenizer, test)
-                    pre = eval(text_id[:config.max_input_len], args.topk)
+                    pre = eval(text_id[:args.max_input_len], args.topk)
                     # 防止生成[]导致rouge报错
                     if pre == []:
                         pre = ['1']
