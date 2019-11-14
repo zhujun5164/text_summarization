@@ -121,8 +121,8 @@ def eval(txt, topk): # batch_size, seq_size
         token_topk = np.argsort(candidate_scores)[-topk:]  # 取topk * topk中的topk的下标
 
         for j, k in enumerate(token_topk):
-            # target_ids[j].append(candidate_ids[k][-1]) # 加到target_ids中
-            target_ids[j] = candidate_ids[k]
+            target_ids[j].append(candidate_ids[k][-1]) # 加到target_ids中
+            # target_ids[j] = candidate_ids[k]
             target_scores[j] = candidate_scores[k] # 换分数
         ends = [j for j, k in enumerate(target_ids) if k[-1] == tokenizer.sep_token_id]
         if len(ends) > 0:
@@ -310,7 +310,7 @@ if __name__ == '__main__':
     ]
     optimizer = AdamW(optimizer_grouped_parameters, lr=5e-5, eps=1e-8)
     # optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
-    # writer = SummaryWriter()
+    writer = SummaryWriter(save_path)
     rouge = Rouge()
 
     if os.path.exists(save_path) is not True:
@@ -333,7 +333,7 @@ if __name__ == '__main__':
             count_acc += acc
             n += 1
 
-            if iter % 500 == 0:
+            if iter % 5000 == 0:
                 count_loss = count_loss / n
                 count_acc = count_acc / n
 
@@ -350,11 +350,14 @@ if __name__ == '__main__':
 
                 # 计算rouge-1-r
                 # rouge计算需要每个字用空格分隔
+                print('iter: ', iter)
+                for i in pre_all:
+                    print(i)
                 score = rouge.get_scores(pre_all, summary_all, avg=True)
                 rouge_1_r = score['rouge-1']['r']
-                # writer.add_scalar("rouge_1_r", rouge_1_r, iter)
+                writer.add_scalar("rouge_1_r", rouge_1_r, iter)
 
-                print('iter:', iter, "loss:", count_loss, "acc:", count_acc, 'rouge_1_r', rouge_1_r)
+                # print('iter:', iter, "loss:", count_loss, "acc:", count_acc, 'rouge_1_r', rouge_1_r)
                 if count_loss < best_loss and count_acc >= best_acc and rouge_1_r > best_rouge_1_r:
                     best_loss = count_loss
                     best_acc = count_acc
@@ -376,5 +379,5 @@ if __name__ == '__main__':
 
                 count_loss, count_acc, n = 0, 0, 0
 
-            # writer.add_scalar("Loss/train", loss, iter)
-            # writer.add_scalar("Accuracy/train", acc, iter)
+            writer.add_scalar("Loss/train", loss, iter)
+            writer.add_scalar("Accuracy/train", acc, iter)
