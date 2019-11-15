@@ -41,16 +41,16 @@ def train(iter, txt, summary):
     target = bert_input[:, 1:]
     y_mask = 1. - (target == tokenizer.pad_token_id).float()
 
+    acc_mask = token_type_id[:, 1:].clone()
+    acc_mask[y_mask == 0] = 0
+
     # function loss
     # log_probs = torch.log(y_pre + 1e-12)
     # log_probs = log_probs.permute(0,2,1)
     # loss = torch.nn.functional.nll_loss(log_probs, target, reduction="none")
 
     loss = loss_fn(y_pre.reshape(-1, y_pre.size(2)), target.reshape((-1)))
-    loss = torch.sum(loss.mul(y_mask.reshape(-1))) / torch.sum(y_mask)
-
-    acc_mask = token_type_id[:, 1:].clone()
-    acc_mask[y_mask == 0] = 0
+    loss = torch.sum(loss.mul(acc_mask.reshape(-1))) / torch.sum(acc_mask)
 
     # 试着做一个Loss,让summary部分的loss比重更大
     # _loss = _loss.mul(y_mask)
