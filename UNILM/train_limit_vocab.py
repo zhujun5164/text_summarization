@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 from pytorch_transformers.modeling_bert import BertConfig, BertForMaskedLM
 from pytorch_transformers.tokenization_bert import BertTokenizer
-from pytorch_transformers.optimization import AdamW
+from pytorch_transformers.optimization import AdamW, WarmupLinearSchedule
 import torch
 import code
 import argparse
@@ -121,8 +121,8 @@ def eval(txt, topk): # batch_size, seq_size
         token_topk = np.argsort(candidate_scores)[-topk:]  # 取topk * topk中的topk的下标
 
         for j, k in enumerate(token_topk):
-            target_ids[j].append(candidate_ids[k][-1]) # 加到target_ids中
-            # target_ids[j] = candidate_ids[k]
+            # target_ids[j].append(candidate_ids[k][-1]) # 加到target_ids中
+            target_ids[j] = candidate_ids[k]
             target_scores[j] = candidate_scores[k] # 换分数
         ends = [j for j, k in enumerate(target_ids) if k[-1] == tokenizer.sep_token_id]
         if len(ends) > 0:
@@ -170,13 +170,17 @@ if __name__ == '__main__':
     # parser.add_argument('--text_name', type=str, default='UNILM', required=True)
 
     # other parameters
-    parser.add_argument('--max_input_len', type=int, default=256,
+    parser.add_argument("--warmup_steps", default=0, type=int,
+                        help="Linear warmup over warmup_steps.")
+    parser.add_argument('--gradient_accumulation_steps', type=int, default=10,
+                        help="Number of updates steps to accumulate before performing a backward/update pass.")
+    parser.add_argument('--max_input_len', type=int, default=400,
                         help='the limit length for input text')
     parser.add_argument('--max_output_len', type=int, default=32,
                         help='the limit length for input summary and predict sentence')
     parser.add_argument('--epochs', type=int, default=30,
                         help='train epoch')
-    parser.add_argument('--batch_size', type=int, default=10,
+    parser.add_argument('--batch_size', type=int, default=8,
                         help='train batch_size')
     parser.add_argument('--topk', type=int, default=4,
                         help='topk for beam_search')
@@ -308,7 +312,12 @@ if __name__ == '__main__':
          'weight_decay': 0.0},
         {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
+
+    t_total = (50000 / args.batch_size) / args.gradient_accumulation_steps * args.epochs
+
     optimizer = AdamW(optimizer_grouped_parameters, lr=5e-5, eps=1e-8)
+    scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
+
     # optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
     writer = SummaryWriter(save_path)
     rouge = Rouge()
@@ -333,7 +342,7 @@ if __name__ == '__main__':
             count_acc += acc
             n += 1
 
-            if iter % 5000 == 0:
+            if iter % 500 == 0:
                 count_loss = count_loss / n
                 count_acc = count_acc / n
 
