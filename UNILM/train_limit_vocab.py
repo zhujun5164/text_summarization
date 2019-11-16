@@ -386,7 +386,7 @@ if __name__ == '__main__':
                     best_loss = count_loss
                     best_acc = count_acc
 
-                    model_name = 'best_model' + str(iter) + '.pt'
+                    model_name = 'best_model_' + str(iter) + '.pt'
                     model_path = os.path.join(save_path, model_name)
 
                     state = model.state_dict()
