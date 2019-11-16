@@ -24,13 +24,19 @@ def train(iter, txt, summary):
     summary = torch.tensor(summary)
 
     token_type_id = make_token_ids(txt, summary)   # batch_size, seq_size
-    attention_mask = UNILM_MASK(token_type_id)     # batch_size, seq_size, seq_size
+
+    if args.use_UNILM:
+        attention_mask = UNILM_MASK(token_type_id)      # batch_size, seq_size, seq_size
+        attention_mask = attention_mask.to(device)
 
     token_type_id = token_type_id.to(device)
-    attention_mask = attention_mask.to(device)
     bert_input = torch.cat((txt, summary), 1).to(device)
 
-    outputs = model(bert_input, token_type_ids = token_type_id, attention_mask = attention_mask)
+    if args.use_UNILM:
+        outputs = model(bert_input, token_type_ids = token_type_id, attention_mask = attention_mask)
+    else:
+        outputs = model(bert_input, token_type_ids = token_type_id)
+
     # vocab_embed = model.bert.embeddings.word_embeddings.weight
     # vocab_embed = vocab_embed.permute(1,0).clone()
     # outputs = torch.matmul(outputs, vocab_embed)
@@ -50,7 +56,11 @@ def train(iter, txt, summary):
     # loss = torch.nn.functional.nll_loss(log_probs, target, reduction="none")
 
     loss = loss_fn(y_pre.reshape(-1, y_pre.size(2)), target.reshape((-1)))
-    loss = torch.sum(loss.mul(acc_mask.reshape(-1))) / torch.sum(acc_mask)
+
+    if args.use_summary_loss:
+        loss = torch.sum(loss.mul(acc_mask.reshape(-1))) / torch.sum(acc_mask)
+    else:
+        loss = torch.sum(loss.mul(y_mask.reshape(-1))) / torch.sum(y_mask)
 
     # 试着做一个Loss,让summary部分的loss比重更大
     # _loss = _loss.mul(y_mask)
@@ -156,6 +166,11 @@ if __name__ == '__main__':
                         help='the vocab data in the folder_path')
     parser.add_argument('--model_name', type=str, default=None, required=True,
                         help='the model data in the folder_path')
+    parser.add_argument('--use_UNILM', action='store_true',
+                        help='if use use_UNILM, use the UNILM mask in the train, else use base BERT')
+    parser.add_argument('--use_summary_loss', action='store_true',
+                        help='if with use_summary_loss, use a new loss just attention the summary, '
+                             'else use the loss just mask the PAD word')
     parser.add_argument('--limit_vocab', action='store_true',
                         help='if with limit_vocab, use a new vocab in the train')
     parser.add_argument('--limit_vocabulary_name', type=str, default=None,
