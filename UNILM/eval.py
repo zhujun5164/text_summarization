@@ -99,33 +99,19 @@ if __name__ == '__main__':
                         help='the model data in the folder_path')
     parser.add_argument('--use_UNILM', action='store_true',
                         help='if use use_UNILM, use the UNILM mask in the train, else use base BERT')
-    parser.add_argument('--use_summary_loss', action='store_true',
-                        help='if with use_summary_loss, use a new loss just attention the summary, '
-                             'else use the loss just mask the PAD word')
     parser.add_argument('--limit_vocab', action='store_true',
                         help='if with limit_vocab, use a new vocab in the train')
     parser.add_argument('--limit_vocabulary_name', type=str, default=None,
                         help='the limit_vocabulary use for limit_vocab task')
     parser.add_argument('--limit_vocab_model_name', type=str, default=None,
                         help='the limit_vocab_model use for limit_vocab task')
-    parser.add_argument('--min_count', type=int, default=0,
-                        help='the number of word more than min_count can be used in new vocab')
-
-    parser.add_argument('--load_model', type=str, default=None,
-                        help='if have, the code will contiune train the load model')
     # parser.add_argument('--text_name', type=str, default='UNILM', required=True)
 
     # other parameters
-    parser.add_argument("--warmup_steps", default=0, type=int,
-                        help="Linear warmup over warmup_steps.")
-    parser.add_argument('--gradient_accumulation_steps', type=int, default=10,
-                        help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument('--max_input_len', type=int, default=400,
                         help='the limit length for input text')
     parser.add_argument('--max_output_len', type=int, default=32,
                         help='the limit length for input summary and predict sentence')
-    parser.add_argument('--epochs', type=int, default=30,
-                        help='train epoch')
     parser.add_argument('--batch_size', type=int, default=8,
                         help='train batch_size')
     parser.add_argument('--topk', type=int, default=4,
@@ -153,28 +139,23 @@ if __name__ == '__main__':
     # if (os.path.exists(train_path) and os.path.exists(dev_path)) is not True:
     #     make_data(data_path, train_path, dev_path)
 
-    config_path = os.path.join(args.folder_path, args.config_name)
-    vocab_path = os.path.join(args.folder_path, args.vocab_name)
-
     if args.limit_vocab:
-        new_vocab_path = os.path.join(args.folder_path, args.limit_vocabulary_name)
-        new_model_path = os.path.join(args.folder_path, args.limit_vocab_model_name)
-        vocab_path = new_vocab_path
-        model_path = new_model_path
+        vocab_path = os.path.join(args.folder_path, args.limit_vocabulary_name)
+    else:
+        vocab_path = os.path.join(args.folder_path, args.vocab_name)
 
     # 创建分词器
     # 使用vocab文件进行pretrain的时候出了错误，输出的vocab成为了乱码
     tokenizer = BertTokenizer.from_pretrained(vocab_path)
-
-    # 获取初始的bert模型参数目录
+    config_path = os.path.join(args.folder_path, args.config_name)
     config = BertConfig.from_pretrained(config_path)
     if args.limit_vocab:
         config.vocab_size = tokenizer.vocab_size
 
     rouge = Rouge()
 
-    if os.path.exists(save_path) is not True:
-        os.mkdir(save_path)
+    # if os.path.exists(save_path) is not True:
+    #     os.mkdir(save_path)
 
     dev_data = pd.read_csv(dev_path, encoding='utf-8')
     dev_texts = list(dev_data['text'].values)
@@ -188,12 +169,12 @@ if __name__ == '__main__':
     # 改为for i in save_model.
     # 导入checkpoint
     # 预测
-    outputs_path = os.path.join(save_path, 'dev_outputs')
     rouge_scores = []
     load_models = []
     listdirs = os.listdir(data_path)
     for listdir in listdirs:
-        model_path = os.path.join(data_path, listdir)
+        # 结合获取save_path文件中所有的文件名，并组合成地址
+        model_path = os.path.join(save_path, listdir)
         # 因为在training代码上确定了保存模型的尾椎是pt结尾的，所以这里做判断的时候就直接使用endwith('.pt')
         # 如果结尾为pt结尾，就说明是训练所保存的模型，就读入然后做eval
         if model_path.endswith('.pt'):
@@ -224,6 +205,7 @@ if __name__ == '__main__':
         else:
             continue
 
+    outputs_path = os.path.join(save_path, 'dev_outputs')
     with open(outputs_path, 'w') as f:
         n = len(rouge_scores)
         for i in range(n):
