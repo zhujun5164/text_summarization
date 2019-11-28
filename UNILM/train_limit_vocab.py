@@ -274,6 +274,8 @@ if __name__ == '__main__':
                 # 更改下保存的数据并保存为新的模型
                 model_dict = torch.load(model_path)
                 model_dict['bert.embeddings.word_embeddings.weight'] = model_dict['bert.embeddings.word_embeddings.weight'][token_num]
+                model_dict['cls.predictions.bias'] = model_dict['cls.predictions.bias'][token_num]
+                model_dict['cls.predictions.decoder.weight'] = model_dict['cls.predictions.decoder.weight'][token_num]
                 # 保存模型
                 torch.save(model_dict, new_model_path)
 
