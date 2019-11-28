@@ -560,9 +560,9 @@ class PreTrainedModel(nn.Module):
         if len(unexpected_keys) > 0:
             logger.info("Weights from pretrained model not used in {}: {}".format(
                 model.__class__.__name__, unexpected_keys))
-        # if len(error_msgs) > 0:
-        #     raise RuntimeError('Error(s) in loading state_dict for {}:\n\t{}'.format(
-        #                        model.__class__.__name__, "\n\t".join(error_msgs)))
+        if len(error_msgs) > 0:
+            raise RuntimeError('Error(s) in loading state_dict for {}:\n\t{}'.format(
+                               model.__class__.__name__, "\n\t".join(error_msgs)))
 
         if hasattr(model, 'tie_weights'):
             model.tie_weights()  # make sure word embedding weights are still tied
